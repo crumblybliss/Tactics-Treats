@@ -123,11 +123,12 @@
   <h1>Bracelets</h1>
   <div class="container" id="braceletProducts"></div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-    import { getFirestore, collection, getDocs, setDoc, doc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
 
+  <script>
     const firebaseConfig = {
       apiKey: "AIzaSyCrdPP5q_eZ4OqqcCW1nguD89f5VHLPVU0",
       authDomain: "survival-f35e2.firebaseapp.com",
@@ -137,9 +138,9 @@
       appId: "1:704462603548:android:00d1a3fb89f9106a59e6d9"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth();
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
 
     window.addToCart = async (productB64, selectedSize) => {
       const user = auth.currentUser;
@@ -162,18 +163,16 @@
         price: sizeInfo.price
       };
 
-      // Use Firestore document ID (doc.id) if product does not have an 'id' field
       const productId = product.id || product.name || `product-${Date.now()}`; // Fallback to a unique ID if missing
 
-      // Store cart in Firestore instead of localStorage
-      const userCartRef = collection(db, "carts", user.uid, "items");
-      await setDoc(doc(userCartRef, productId), cartItem);  // Use generated or actual product ID
+      const userCartRef = db.collection("carts").doc(user.uid).collection("items");
+      await userCartRef.doc(productId).set(cartItem);
 
       alert(`${product.name} (${selectedSize}) added to your cart for $${sizeInfo.price}`);
     };
 
     const fetchBracelets = async () => {
-      const snap = await getDocs(collection(db, "bracelets"));
+      const snap = await db.collection("bracelets").get();
       const container = document.getElementById("braceletProducts");
 
       if (snap.empty) {
@@ -208,11 +207,11 @@
       });
     };
 
-    onAuthStateChanged(auth, (user) => {
+    firebase.auth().onAuthStateChanged(user => {
       const btn = document.getElementById("loginButton");
       if (user) {
         btn.innerText = "Logout";
-        btn.onclick = () => signOut(auth);
+        btn.onclick = () => firebase.auth().signOut();
       } else {
         btn.innerText = "Login";
         btn.onclick = () => window.location.href = "login.html";
