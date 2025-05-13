@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Become a Sponsor – Tactics & Treats</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      background-color: #f1f1f1;
+      color: #333;
+      text-align: center;
+    }
+
+    .navbar {
+      background-color: #0a1d37;
+      color: white;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 1000;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    }
+
+    .navbar .left a {
+      color: white;
+      margin-right: 20px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .navbar .right {
+      display: flex;
+      align-items: center;
+    }
+
+    .auth-btn {
+      background-color: #00bcd4;
+      color: white;
+      padding: 8px 15px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-left: 10px;
+      font-weight: bold;
+    }
+
+    .main-content {
+      padding-top: 100px;
+      padding: 100px 20px 40px;
+      max-width: 700px;
+      margin: auto;
+    }
+
+    h1 {
+      color: #0a1d37;
+    }
+
+    a.button {
+      display: inline-block;
+      margin-top: 20px;
+      background-color: #00bcd4;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    a.button:hover {
+      background-color: #0097a7;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="left">
+      <a href="index.html">Tactics & Treats</a>
+      <a href="bracelets.html">Bracelets</a>
+      <a href="cookies.html">Cookies</a>
+      <a href="admin.html">Admin Panel</a>
+    </div>
+    <div class="right">
+      <button id="loginButton" class="auth-btn">Login</button>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <h1>Become a Sponsor</h1>
+    <p>Support our mission at Tactics & Treats by becoming a valued sponsor.</p>
+    <p>As a sponsor, you’ll be featured on our homepage and other promotional content. Whether you’re a small business or a large organization, your support helps us grow and give back to the community.</p>
+    <p>Interested? Send us an email and let’s talk sponsorship!</p>
+    <a href="mailto:support@tacticsandtreats.com" class="button">Contact Us</a>
+  </main>
+
+  <!-- Firebase Auth Logic (Optional) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCrdPP5q_eZ4OqqcCW1nguD89f5VHLPVU0",
+      authDomain: "survival-f35e2.firebaseapp.com",
+      projectId: "survival-f35e2",
+      storageBucket: "survival-f35e2.appspot.com",
+      messagingSenderId: "704462603548",
+      appId: "1:704462603548:android:00d1a3fb89f9106a59e6d9"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth();
+
+    const loginBtn = document.getElementById("loginButton");
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        loginBtn.innerText = "Logout";
+        loginBtn.onclick = () => signOut(auth);
+      } else {
+        loginBtn.innerText = "Login";
+        loginBtn.onclick = () => window.location.href = "login.html";
+      }
+    });
+  </script>
+</body>
+</html>

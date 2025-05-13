@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Reviews</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #0a1d37;
+      color: #f1f1f1;
+      margin: 0;
+      padding: 0;
+    }
+    .navbar {
+      background-color: #003c5a;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .navbar a {
+      color: #f1f1f1;
+      margin: 0 10px;
+      text-decoration: none;
+    }
+    .navbar a:hover {
+      color: #00bcd4;
+    }
+    .container {
+      max-width: 600px;
+      margin: 30px auto;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 20px;
+      border-radius: 8px;
+    }
+    input, textarea, button {
+      width: 100%;
+      margin: 10px 0;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 4px;
+      border: none;
+    }
+    input, textarea {
+      color: black;
+    }
+    button {
+      background-color: #00bcd4;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #009bb5;
+    }
+    .review {
+      background: #003c5a;
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    .star-rating input {
+      display: none;
+    }
+    .star-rating label {
+      font-size: 24px;
+      color: #ccc;
+      cursor: pointer;
+    }
+    .star-rating input:checked ~ label,
+    .star-rating label:hover,
+    .star-rating label:hover ~ label {
+      color: #ffcc00;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="navbar">
+    <div><strong>Tactics & Treats Reviews</strong></div>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="bracelets.html">Bracelets</a>
+      <a href="cookies.html">Cookies</a>
+      <a href="cart.html">Cart</a>
+      <a href="reviews.html">Reviews</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div id="averageRating">⭐ Average Rating: Loading...</div>
+
+    <h2>Leave a Review</h2>
+    <form id="reviewForm">
+      <input type="text" id="name" placeholder="Your Name" required />
+      <textarea id="message" placeholder="Your Review" rows="4" required></textarea>
+      <div class="star-rating">
+        <input type="radio" id="star5" name="rating" value="5" required><label for="star5">★</label>
+        <input type="radio" id="star4" name="rating" value="4"><label for="star4">★</label>
+        <input type="radio" id="star3" name="rating" value="3"><label for="star3">★</label>
+        <input type="radio" id="star2" name="rating" value="2"><label for="star2">★</label>
+        <input type="radio" id="star1" name="rating" value="1"><label for="star1">★</label>
+      </div>
+      <button type="submit">Post Review</button>
+    </form>
+
+    <h3>Recent Reviews</h3>
+    <div id="reviewsList"></div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+    import {
+      getAuth,
+      onAuthStateChanged,
+      signInAnonymously
+    } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      getDocs,
+      query,
+      orderBy,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCrdPP5q_eZ4OqqcCW1nguD89f5VHLPVU0",
+      authDomain: "survival-f35e2.firebaseapp.com",
+      projectId: "survival-f35e2",
+      storageBucket: "survival-f35e2.appspot.com",
+      messagingSenderId: "704462603548",
+      appId: "1:704462603548:android:00d1a3fb89f9106a59e6d9"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    const form = document.getElementById('reviewForm');
+    const reviewsList = document.getElementById('reviewsList');
+    const averageRating = document.getElementById('averageRating');
+
+    // Sign in anonymously
+    onAuthStateChanged(auth, user => {
+      if (!user) {
+        signInAnonymously(auth).catch(console.error);
+      }
+    });
+
+    async function loadReviews() {
+      reviewsList.innerHTML = "";
+      const q = query(collection(db, "reviews"), orderBy("createdAt", "desc"));
+      const snapshot = await getDocs(q);
+      let total = 0, count = 0;
+
+      snapshot.forEach(doc => {
+        const { name, message, rating } = doc.data();
+        total += rating;
+        count++;
+
+        const div = document.createElement('div');
+        div.className = "review";
+        div.innerHTML = `
+          <strong>${name}</strong><br/>
+          <div>${"★".repeat(rating)}${"☆".repeat(5 - rating)}</div>
+          <p>${message}</p>
+        `;
+        reviewsList.appendChild(div);
+      });
+
+      averageRating.textContent = count
+        ? `⭐ Average Rating: ${(total / count).toFixed(1)} / 5`
+        : `⭐ Average Rating: No reviews yet`;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = document.getElementById("name").value.trim();
+      const message = document.getElementById("message").value.trim();
+      const rating = parseInt(document.querySelector('input[name="rating"]:checked')?.value || 0);
+
+      if (!name || !message || !rating) {
+        alert("Please fill out all fields.");
+        return;
+      }
+
+      try {
+        await addDoc(collection(db, "reviews"), {
+          name,
+          message,
+          rating,
+          createdAt: serverTimestamp()
+        });
+        form.reset();
+        loadReviews();
+        alert("Review submitted successfully!");
+      } catch (err) {
+        alert("Failed to submit review: " + err.message);
+      }
+    });
+
+    loadReviews();
+  </script>
+</body>
+</html>

@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Checkout - Tactics & Treats</title>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+
+  <!-- PayPal -->
+  <script src="https://www.paypal.com/sdk/js?client-id=AQcFtEbhKbyJ6yhhv3yoTMs6MbDOU-r4Y7cEdlKIyeZ2BtyXZSNMv6ZIkrdZZ3VMPzDn4542pLzS3oxE&currency=USD&components=buttons"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f1f1f1;
+      margin: 0;
+      color: #333;
+      text-align: center;
+    }
+
+    header, nav, footer {
+      background-color: #0a1d37;
+      color: white;
+    }
+
+    header {
+      padding: 20px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .profile-link img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .auth-status {
+      font-weight: bold;
+      font-size: 1rem;
+    }
+
+    nav {
+      padding: 10px 0;
+      background-color: #0a1d37;
+    }
+
+    nav a {
+      color: white;
+      margin: 0 20px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .content {
+      max-width: 900px;
+      margin: 40px auto;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .cart-item {
+      background: #fafafa;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .cart-item h3 {
+      font-size: 1.2rem;
+    }
+
+    .promo-code {
+      margin: 30px 0;
+    }
+
+    .promo-code input {
+      padding: 12px;
+      width: 60%;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-right: 15px;
+    }
+
+    .promo-code button {
+      background-color: #00bcd4;
+      color: white;
+      padding: 12px 25px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    .promo-code button:hover {
+      background-color: #0097a7;
+    }
+
+    #paypal-button-container {
+      margin-top: 40px;
+    }
+
+    footer {
+      background-color: #0a1d37;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="index.html" class="profile-link">
+      <img src="profile.jpg" alt="Profile Picture">
+    </a>
+    <div class="auth-status" id="auth-status">Logged Out</div>
+  </header>
+
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="shop.html">Shop</a>
+    <a href="cart.html">Cart</a>
+    <a href="checkout.html">Checkout</a>
+  </nav>
+
+  <div class="content">
+    <h1>Checkout</h1>
+    <div id="cart-items"></div>
+    <p id="total-price">Total: $0.00</p>
+
+    <div class="promo-code">
+      <input type="text" id="promo-code-input" placeholder="Enter promo code">
+      <button id="apply-promo-btn">Apply Promo Code</button>
+      <p id="promo-message"></p>
+    </div>
+
+    <div id="paypal-button-container"></div>
+    <p id="result-message"></p>
+  </div>
+
+  <footer>
+    <p>&copy; 2025 Tactics & Treats</p>
+  </footer>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCrdPP5q_eZ4OqqcCW1nguD89f5VHLPVU0",
+      authDomain: "survival-f35e2.firebaseapp.com",
+      projectId: "survival-f35e2",
+      storageBucket: "survival-f35e2.appspot.com",
+      messagingSenderId: "704462603548",
+      appId: "1:704462603548:android:00d1a3fb89f9106a59e6d9"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    let originalTotal = 0;
+    let isAdmin = false;
+
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        const userRef = db.collection("users").doc(user.uid);
+        userRef.get().then(doc => {
+          if (doc.exists && doc.data().role === "admin") {
+            isAdmin = true;
+            document.getElementById("auth-status").textContent = "Logged in as Admin";
+          } else {
+            document.getElementById("auth-status").textContent = "Logged in as User";
+          }
+        }).catch(error => {
+          console.error("Error checking user role:", error);
+        });
+      } else {
+        document.getElementById("auth-status").textContent = "Logged Out";
+      }
+    });
+
+    function getCartFromLocalStorage() {
+      return JSON.parse(localStorage.getItem("cart")) || [];
+    }
+
+    function displayCart() {
+      const cart = getCartFromLocalStorage();
+      const cartItemsDiv = document.getElementById("cart-items");
+      let total = 0;
+
+      if (cart.length === 0) {
+        cartItemsDiv.innerHTML = "<p>Your cart is empty!</p>";
+        return;
+      }
+
+      cartItemsDiv.innerHTML = "";
+      cart.forEach(item => {
+        const itemDiv = document.createElement("div");
+        itemDiv.className = "cart-item";
+        itemDiv.innerHTML = `
+          <h3>${item.name}</h3>
+          <p>Size: ${item.selectedSize}</p>
+          <p>Color: ${item.selectedColor}</p>
+          <p>Price: $${item.price.toFixed(2)}</p>
+        `;
+        cartItemsDiv.appendChild(itemDiv);
+        total += item.price;
+      });
+
+      originalTotal = total;
+      updateCartTotal(total);
+    }
+
+    function updateCartTotal(amount) {
+      document.getElementById("total-price").textContent = `Total: $${amount.toFixed(2)}`;
+    }
+
+    function applyPromoCode(code) {
+      const promoRef = db.collection("promo_codes").doc(code.toUpperCase());
+
+      promoRef.get().then(doc => {
+        if (!doc.exists) {
+          document.getElementById("promo-message").textContent = "Invalid promo code.";
+          return;
+        }
+
+        const promo = doc.data();
+        if (!promo.discount || isNaN(promo.discount)) {
+          document.getElementById("promo-message").textContent = "Invalid discount value.";
+          return;
+        }
+
+        const discountAmount = (originalTotal * promo.discount) / 100;
+        const newTotal = originalTotal - discountAmount;
+        updateCartTotal(newTotal);
+
+        document.getElementById("promo-message").textContent = `Promo applied: ${promo.discount}% off!`;
+      }).catch(error => {
+        console.error("Error checking promo code:", error);
+        document.getElementById("promo-message").textContent = "Error checking promo code.";
+      });
+    }
+
+    document.getElementById("apply-promo-btn").addEventListener("click", () => {
+      const code = document.getElementById("promo-code-input").value;
+      applyPromoCode(code);
+    });
+
+    paypal.Buttons({
+      createOrder: function(data, actions) {
+        const totalText = document.getElementById("total-price").textContent;
+        const total = parseFloat(totalText.replace("Total: $", ""));
+
+        if (isAdmin) {
+          return actions.order.create({
+            purchase_units: [{
+              amount: {
+                value: total > 0 ? total.toFixed(2) : '0.01'
+              }
+            }]
+          });
+        }
+
+        if (total === 0) {
+          return actions.order.create({
+            purchase_units: [{
+              amount: {
+                value: '0.01'
+              }
+            }]
+          });
+        }
+
+        return actions.order.create({
+          purchase_units: [{
+            amount: {
+              value: total.toFixed(2)
+            }
+          }]
+        });
+      },
+      onApprove: function(data, actions) {
+        return actions.order.capture().then(function(details) {
+          document.getElementById("result-message").textContent =
+            "Transaction completed by " + details.payer.name.given_name;
+
+          localStorage.removeItem("cart");
+          displayCart();
+        });
+      }
+    }).render("#paypal-button-container");
+
+    displayCart();
+  </script>
+</body>
+</html>

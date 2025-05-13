@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Firebase Modular SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      onSnapshot,
+      doc,
+      updateDoc,
+      deleteDoc,
+      addDoc
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCrdPP5q_eZ4OqqcCW1nguD89f5VHLPVU0",
+      authDomain: "survival-f35e2.firebaseapp.com",
+      projectId: "survival-f35e2",
+      storageBucket: "survival-f35e2.appspot.com",
+      messagingSenderId: "704462603548",
+      appId: "1:704462603548:android:00d1a3fb89f9106a59e6d9"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const productList = document.getElementById("product-list");
+
+    function loadProducts() {
+      onSnapshot(collection(db, "products"), snapshot => {
+        productList.innerHTML = ""; // Clear the existing list
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          const div = document.createElement("div");
+          div.className = "bg-white p-4 rounded shadow grid grid-cols-1 md:grid-cols-6 gap-2 items-center";
+
+          const colorInputs = data.color?.map(color =>
+            `<input value="${color}" class="border p-2 rounded color w-full" disabled />`
+          ).join('') || '';
+
+          const priceInputs = data.prices ? Object.entries(data.prices).map(([size, price]) => `
+            <div class="flex gap-2 items-center">
+              <input type="text" value="${size}" class="border p-2 rounded size w-full" disabled />
+              <input type="number" step="0.01" value="${price}" class="border p-2 rounded price w-full" disabled />
+            </div>
+          `).join('') : '';
+
+          div.innerHTML = `
+            <input value="${data.name}" class="border p-2 rounded name w-full" disabled />
+            <input value="${data.image}" class="border p-2 rounded image w-full" disabled />
+            <div class="colors w-full">${colorInputs}</div>
+            <div class="prices w-full">${priceInputs}</div>
+            <select class="border p-2 rounded page w-full" disabled>
+              <option value="cookies" ${data.page === "cookies" ? "selected" : ""}>Cookies</option>
+              <option value="bracelets" ${data.page === "bracelets" ? "selected" : ""}>Bracelets</option>
+            </select>
+            <div class="flex gap-2">
+              <button class="edit bg-yellow-500 text-white px-3 py-1 rounded">Edit</button>
+              <button class="save bg-green-500 text-white px-3 py-1 rounded hidden">Save</button>
+              <button class="cancel bg-gray-500 text-white px-3 py-1 rounded hidden">Cancel</button>
+              <button class="delete bg-red-500 text-white px-3 py-1 rounded">Delete</button>
+            </div>
+          `;
+
+          const name = div.querySelector(".name");
+          const image = div.querySelector(".image");
+          const colorInputsEls = div.querySelectorAll(".color");
+          const sizeInputs = div.querySelectorAll(".size");
+          const priceInputsEls = div.querySelectorAll(".price");
+          const page = div.querySelector(".page");
+
+          const editButton = div.querySelector(".edit");
+          const saveButton = div.querySelector(".save");
+          const cancelButton = div.querySelector(".cancel");
+          const deleteButton = div.querySelector(".delete");
+
+          editButton.onclick = () => {
+            name.disabled = false;
+            image.disabled = false;
+            colorInputsEls.forEach(input => input.disabled = false);
+            sizeInputs.forEach(input => input.disabled = false);
+            priceInputsEls.forEach(input => input.disabled = false);
+            page.disabled = false;
+            editButton.classList.add("hidden");
+            saveButton.classList.remove("hidden");
+            cancelButton.classList.remove("hidden");
+          };
+
+          saveButton.onclick = async () => {
+            const newColors = Array.from(colorInputsEls).map(input => input.value);
+            const newPrices = {};
+            sizeInputs.forEach((sizeInput, index) => {
+              const size = sizeInput.value;
+              const price = parseFloat(priceInputsEls[index].value);
+              if (size && !isNaN(price)) {
+                newPrices[size] = price;
+              }
+            });
+
+            await updateDoc(doc(db, "products", docSnap.id), {
+              name: name.value,
+              image: image.value,
+              color: newColors,
+              prices: newPrices,
+              page: page.value
+            });
+
+            name.disabled = true;
+            image.disabled = true;
+            colorInputsEls.forEach(input => input.disabled = true);
+            sizeInputs.forEach(input => input.disabled = true);
+            priceInputsEls.forEach(input => input.disabled = true);
+            page.disabled = true;
+            saveButton.classList.add("hidden");
+            cancelButton.classList.add("hidden");
+            editButton.classList.remove("hidden");
+          };
+
+          cancelButton.onclick = () => {
+            name.disabled = true;
+            image.disabled = true;
+            colorInputsEls.forEach(input => input.disabled = true);
+            sizeInputs.forEach(input => input.disabled = true);
+            priceInputsEls.forEach(input => input.disabled = true);
+            page.disabled = true;
+            saveButton.classList.add("hidden");
+            cancelButton.classList.add("hidden");
+            editButton.classList.remove("hidden");
+          };
+
+          deleteButton.onclick = async () => {
+            if (confirm("Delete this product?")) {
+              await deleteDoc(doc(db, "products", docSnap.id));
+            }
+          };
+
+          productList.appendChild(div);
+        });
+      });
+    }
+
+    loadProducts();
+    
+    // Add color field
+    document.getElementById("add-color").addEventListener("click", () => {
+      const newColorInput = document.createElement("input");
+      newColorInput.type = "text";
+      newColorInput.placeholder = "Color (e.g., Brown)";
+      newColorInput.classList.add("border", "p-2", "rounded", "color-input");
+      document.getElementById("colors-container").insertBefore(newColorInput, document.getElementById("add-color"));
+    });
+
+    // Add size/price fields
+    document.getElementById("add-size").addEventListener("click", () => {
+      const sizeInput = document.createElement("input");
+      sizeInput.type = "text";
+      sizeInput.placeholder = "Size (e.g., Medium)";
+      sizeInput.classList.add("border", "p-2", "rounded");
+
+      const priceInput = document.createElement("input");
+      priceInput.type = "number";
+      priceInput.step = "0.01";
+      priceInput.placeholder = "Price";
+      priceInput.classList.add("border", "p-2", "rounded");
+
+      const container = document.getElementById("sizes-container");
+      container.insertBefore(sizeInput, document.getElementById("add-size"));
+      container.insertBefore(priceInput, document.getElementById("add-size"));
+    });
+
+    // Add product
+    document.getElementById("add-product-form").addEventListener("submit", async e => {
+      e.preventDefault();
+      const name = document.getElementById("new-name").value;
+      const image = document.getElementById("new-image").value;
+      const colorInputs = document.querySelectorAll("#colors-container input[type='text']");
+      const colors = Array.from(colorInputs).map(input => input.value).filter(Boolean);
+      const sizeInputs = document.querySelectorAll("#sizes-container input[type='text']");
+      const priceInputs = document.querySelectorAll("#sizes-container input[type='number']");
+      const prices = {};
+      sizeInputs.forEach((sizeInput, index) => {
+        const size = sizeInput.value;
+        const price = parseFloat(priceInputs[index].value);
+        if (size && !isNaN(price)) {
+          prices[size] = price;
+        }
+      });
+      const page = document.getElementById("new-page").value;
+
+      await addDoc(collection(db, "products"), {
+        name,
+        image,
+        color: colors,
+        prices,
+        page
+      });
+
+      e.target.reset();
+
+      // Remove extra color fields
+      const colorContainer = document.getElementById("colors-container");
+      Array.from(colorContainer.querySelectorAll("input")).slice(1).forEach(el => el.remove());
+
+      // Remove extra size/price fields
+      const sizeContainer = document.getElementById("sizes-container");
+      Array.from(sizeContainer.querySelectorAll("input")).slice(2).forEach(el => el.remove());
+    });
+  </script>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-6 font-sans">
+  <!-- Navigation Bar -->
+  <nav class="bg-[#0a1d37] fixed top-0 left-0 w-full z-50 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+      <a href="/" class="text-white text-2xl font-bold">CrumblyBliss</a>
+      <div class="flex space-x-6">
+        <a href="/" class="text-white hover:text-[#00bcd4]">Home</a>
+        <a href="/products.html" class="text-white hover:text-[#00bcd4]">Products</a>
+        <a href="/admin.html" class="text-white hover:text-[#00bcd4]">Admin Panel</a>
+        <button id="auth-btn" class="bg-[#00bcd4] text-white px-4 py-2 rounded">Login</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Page Content -->
+  <div class="pt-16">
+    <div class="max-w-5xl mx-auto">
+      <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Admin Product Editor</h1>
+
+      <!-- Add New Product Form -->
+      <h2 class="text-xl font-semibold mt-10 mb-4">Add New Product</h2>
+      <form id="add-product-form" class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 rounded shadow">
+        <input required type="text" id="new-name" placeholder="Name" class="border p-2 rounded" />
+        <input required type="url" id="new-image" placeholder="Image URL" class="border p-2 rounded" />
+        
+        <div id="colors-container" class="flex flex-col gap-2">
+          <input type="text" placeholder="Color (e.g., Brown)" class="border p-2 rounded color-input" />
+          <button type="button" id="add-color" class="bg-green-500 text-white px-3 py-1 rounded">Add Color</button>
+        </div>
+
+        <div id="sizes-container" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <input type="text" placeholder="Size (e.g., Small)" class="border p-2 rounded" />
+          <input type="number" step="0.01" placeholder="Price" class="border p-2 rounded" />
+          <button type="button" id="add-size" class="col-span-full bg-green-500 text-white py-2 rounded">Add Size</button>
+        </div>
+
+        <select required id="new-page" class="border p-2 rounded">
+          <option value="">Select Page</option>
+          <option value="cookies">Cookies</option>
+          <option value="bracelets">Bracelets</option>
+        </select>
+
+        <button type="submit" class="col-span-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Add Product</button>
+      </form>
+
+      <!-- Product List Section -->
+      <h2 class="text-xl font-semibold mt-10 mb-4">Product List</h2>
+      <div id="product-list" class="space-y-4"></div>
+    </div>
+  </div>
+</body>
+</html>
